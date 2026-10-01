@@ -22,7 +22,7 @@ services:
       POSTGRES_USER: pix_user
       POSTGRES_PASSWORD: pix_password
     ports:
-      - "5432:5432"
+      - "5434:5432"
     volumes:
       - postgres_account_data:/var/lib/postgresql/data
     networks:
