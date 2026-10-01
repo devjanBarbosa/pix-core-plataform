@@ -8,8 +8,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.pixcore.domain.DTO.TransferRequest;
 import com.pixcore.domain.entity.LedgerEntryEntity;
-import com.pixcore.domain.entity.LedgerEntryEntity.EntryType;
 import com.pixcore.domain.entity.TransactionEntity;
+import com.pixcore.domain.entity.LedgerEntryEntity.EntryType;
 import com.pixcore.domain.entity.TransactionEntity.TransactionStatus;
 import com.pixcore.domain.repository.AccountRepository;
 import com.pixcore.domain.repository.LedgerEntryRepository;
