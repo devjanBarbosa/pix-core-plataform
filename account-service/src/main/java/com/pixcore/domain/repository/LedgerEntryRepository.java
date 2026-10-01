@@ -1,4 +1,4 @@
-package com.pixcore.domain.entity.repository;
+package com.pixcore.domain.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
