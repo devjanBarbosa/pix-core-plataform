@@ -1,0 +1,111 @@
+version: '3.8'
+
+networks:
+  pix-network:
+    driver: bridge
+
+volumes:
+  postgres_account_data:
+  postgres_clearing_data:
+  kafka_data:
+  redis_data:
+
+services:
+  # ---------------------------------------------------------------------------
+  # 1. DATABASE: Account Service (Contas, Ledger e Outbox)
+  # ---------------------------------------------------------------------------
+  postgres-account:
+    image: postgres:16-alpine
+    container_name: postgres-account
+    environment:
+      POSTGRES_DB: account_db
+      POSTGRES_USER: pix_user
+      POSTGRES_PASSWORD: pix_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_account_data:/var/lib/postgresql/data
+    networks:
+      - pix-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pix_user -d account_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # 2. DATABASE: Clearing Service (Liquidações e Conciliação)
+  # ---------------------------------------------------------------------------
+  postgres-clearing:
+    image: postgres:16-alpine
+    container_name: postgres-clearing
+    environment:
+      POSTGRES_DB: clearing_db
+      POSTGRES_USER: pix_user
+      POSTGRES_PASSWORD: pix_password
+    ports:
+      - "5433:5432" # Mapeado para 5433 no host para não conflitar com o 5432
+    volumes:
+      - postgres_clearing_data:/var/lib/postgresql/data
+    networks:
+      - pix-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pix_user -d clearing_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # 3. CACHE & LOCKS: Redis (Idempotência e Bloqueios Rápidos)
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: redis-pix
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - pix-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+
+  kafka:
+    image: apache/kafka:latest
+    container_name: kafka-pix
+    ports:
+      - "9092:9092" 
+      - "9094:9094"  
+    environment:
+
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      
+      KAFKA_LISTENERS: PLAINTEXT://:9094,EXTERNAL://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9094,EXTERNAL://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      
+    
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - pix-network
+
+
+  zipkin:
+    image: openzipkin/zipkin:latest
+    container_name: zipkin-pix
+    ports:
+      - "9411:9411" 
+    networks:
+      - pix-network
